@@ -5,9 +5,9 @@ from patterns import check_msg
 
 
 class TestCheckMsg(unittest.TestCase):
-    """something"""
+    """Test the check_msg function."""
     def test_check_msg_modes(self):
-        """something"""
+        """Test preset string modes."""
         self.assertTrue(
             check_msg("TEST MESSAGE","`U","",False,False))
         self.assertFalse(
@@ -30,7 +30,7 @@ class TestCheckMsg(unittest.TestCase):
             check_msg("test message","`C","",False,False))
 
     def test_check_msg_sw(self):
-        """something"""
+        """Test starting with string."""
         self.assertTrue(
             check_msg("alphabravo charlie deltaecho",">alpha","alpha",False,False))
         self.assertFalse(
@@ -49,7 +49,7 @@ class TestCheckMsg(unittest.TestCase):
             check_msg("Alpha bravo charlie deltaecho",">alpha","alpha",True,True))
 
     def test_check_msg_ew(self):
-        """something"""
+        """Test ending with string."""
         self.assertTrue(
             check_msg("alphabravo charlie deltaecho","echo<","echo",False,False))
         self.assertFalse(
@@ -68,7 +68,7 @@ class TestCheckMsg(unittest.TestCase):
             check_msg("alphabravo charlie delta Echo","echo<","echo",True,True))
 
     def test_check_msg_ex(self):
-        """something"""
+        """Test string exclusion."""
         self.assertTrue(
             check_msg("alpha bravo charli delta echo","~charlie","charlie",False,False))
         self.assertFalse(
@@ -87,7 +87,7 @@ class TestCheckMsg(unittest.TestCase):
             check_msg("alpha bravo charlie delta echo","~charlie","charlie",True,True))
 
     def test_check_msg_inc(self):
-        """something"""
+        """Test string inclusion."""
         self.assertTrue(
             check_msg("alpha bravo charlie delta echo","charlie","charlie",False,False))
         self.assertFalse(
