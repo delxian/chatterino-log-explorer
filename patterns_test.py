@@ -1,4 +1,4 @@
-"""Test cases."""
+"""Test cases for string pattern matching."""
 import unittest
 
 from patterns import check_msg
