@@ -41,7 +41,7 @@ if not os.path.exists("config.json"):
         "exclude_bots": exclude_bots
         }
     with open("config.json",'w',encoding="UTF-8") as file:
-        file.write(json.dumps(config, indent=4, separators=(',', ': ')))
+        file.write(json.dumps(config,indent=4,separators=(',',': ')))
     print("Configuration saved:")
     print(f"    Logs directory: {logs_folder}")
     print(f"    UTC offset: {utc_offset}")
