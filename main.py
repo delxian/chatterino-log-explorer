@@ -40,7 +40,7 @@ try:
         config = json.loads(file.read())
 except FileNotFoundError:
     print("Configuration file missing, starting first-time setup:")
-    logs_folder = askdirectory(title='Select "Chatterino Logs" folder')
+    logs_folder = askdirectory(title='Select your Chatterino logs directory (see Chatterino Settings >> Moderation >> Logs)')
     utc_offset = input("Input +/- UTC offset (e.g. UTC-6 = -6): ").strip()
     utc_offset = int(utc_offset) if utc_offset.lstrip('-+').isnumeric() else 0
     exclude_commands = input(
