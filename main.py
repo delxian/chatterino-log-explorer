@@ -7,11 +7,20 @@ import random
 import re
 import sys
 from tkinter.filedialog import askdirectory
+from typing import TypedDict
 
 import matplotlib.pyplot as plt
 import numpy
 
 from patterns import check_msg
+
+
+class Config(TypedDict):
+    """Configuration data for default operation."""
+    logs_folder: str
+    utc_offset: int
+    exclude_commands: bool
+    exclude_bots: bool
 
 
 def sort_dict(d: dict, use_value: bool = False, reverse: bool = False):
@@ -20,10 +29,16 @@ def sort_dict(d: dict, use_value: bool = False, reverse: bool = False):
         return dict(sorted(d.items(),key=lambda item: item[1],reverse=reverse))
     return dict(sorted(d.items(),reverse=reverse))
 
-
-with open("config.json",'r',encoding="UTF-8") as file:
-    config: dict = json.loads(file.read())
-if not os.path.exists("config.json"):
+config: Config = {
+    "logs_folder": "",
+    "utc_offset": 0,
+    "exclude_commands": False,
+    "exclude_bots": False
+    }
+try:
+    with open("config.json",'r',encoding="UTF-8") as file:
+        config = json.loads(file.read())
+except FileNotFoundError:
     print("Configuration file missing, starting first-time setup:")
     logs_folder = askdirectory(title='Select "Chatterino Logs" folder')
     utc_offset = input("Input +/- UTC offset (e.g. UTC-6 = -6): ").strip()
@@ -47,7 +62,7 @@ if not os.path.exists("config.json"):
     print(f"    UTC offset: {utc_offset}")
     print(f"    Commands excluded: {exclude_commands}")
     print(f"    Bots excluded: {exclude_bots}")
-else:
+finally:
     logs_folder = config["logs_folder"]
     utc_offset = config["utc_offset"]
     exclude_commands = config["exclude_commands"]
