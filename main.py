@@ -333,7 +333,7 @@ while True:
                     time, user, message = cmsg.groups()
                     args = (message,message_query,fix_query,check_case,check_exact_word)
                     if exclude_commands and message_query != "`C" and word_query != "`C":
-                        if message.startswith('!'): continue
+                        if re.match(r"^!\w+",message): continue
                     if exclude_bots and not (search_type == "user" and check_exact_name):
                         if user in BOTS: continue
                     if search_type == 'all':

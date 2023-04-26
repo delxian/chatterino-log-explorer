@@ -4,19 +4,19 @@ import re
 modes = {
     "`U": lambda message:
         all(x.isalpha() or x.isspace() for x in message) and
-        not message.startswith('!') and message.isupper(),
+        not re.match(r"^!\w+",message) and message.isupper(),
     "`L": lambda message:
         all(x.isalpha() or x.isspace() for x in message) and
-        not message.startswith('!') and message.islower(),
+        not re.match(r"^!\w+",message) and message.islower(),
     "`T": lambda message:
         len(message) >= 2 and all(x.isalpha() or x.isspace() for x in message) and
-        not message.startswith('!') and message[0].isupper() and message[1].islower(),
+        not re.match(r"^!\w+",message) and message[0].isupper() and message[1].islower(),
     "`Ts": lambda message:
         len(message) >= 2 and all(x.isalpha() or x.isspace() for x in message) and
-        not message.startswith('!') and message[0].isupper() and
+        not re.match(r"^!\w+",message) and message[0].isupper() and
         all(x.isalpha() and x.islower() or x.isspace() for x in message[1:]),
     "`C": lambda message:
-        len(message) >= 2 and message.startswith('!') and
+        len(message) >= 2 and re.match(r"^!\w+",message) and
         '!' not in message.split(' ')[0][1:],
 }
 
