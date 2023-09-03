@@ -25,9 +25,8 @@ class Config(TypedDict):
 
 def sort_dict(d: dict, use_value: bool = False, reverse: bool = False):
     """Shorthand for sorting dictionaries through list sorting."""
-    if use_value:
-        return dict(sorted(d.items(), key=lambda item: item[1], reverse=reverse))
-    return dict(sorted(d.items(), reverse=reverse))
+    index = 1 if use_value else 0
+    return dict(sorted(d.items(), key=lambda item: item[index], reverse=reverse))
 
 config: Config = {"logs_folder": '',
                   "utc_offset": 0,
@@ -59,19 +58,18 @@ except FileNotFoundError:
     print(f"    UTC offset: {utc_offset}")
     print(f"    Commands excluded: {exclude_commands}")
     print(f"    Bots excluded: {exclude_bots}")
-finally:
+else:
     logs_folder = config["logs_folder"]
     utc_offset = config["utc_offset"]
     exclude_commands = config["exclude_commands"]
     exclude_bots = config["exclude_bots"]
 
-ttypes = ("bots", "common_eng", "strong_curse", "mild_curse", "sexual")
-if any(not os.path.isfile(ttype+".txt") for ttype in ttypes):
+ttypes = {"bots", "common_eng", "strong_curse", "mild_curse", "sexual"}
+if (missing_ttypes := [ttype for ttype in ttypes if not os.path.isfile(ttype+".txt")]):
     print("At least one term list was missing and has been created:")
-    for ttype in ("bots", "common_eng", "strong_curse", "mild_curse", "sexual"):
-        if not os.path.isfile(ttype+".txt"):
-            print(f"    {ttype}.txt")
-            with open(ttype+".txt", 'w', encoding="UTF-8") as file: pass
+    for ttype in missing_ttypes:
+        print(f"    {ttype}.txt")
+        with open(ttype+".txt", 'w', encoding="UTF-8") as file: pass
     print("Please add terms as desired and restart the program (one lowercase term per line).")
     sys.exit()
 
@@ -91,16 +89,15 @@ print('\n'.join([line.center(50, '=') for line in ('', "Chatterino Chat Log Expl
 
 while True:
     channels, channels_disp = [], []
-    for _, directories, _ in os.walk(f"{logs_folder}/Twitch/Channels/", topdown=False):
-        channels = list(directories)
-        channels_disp = [f"{i} - {username}" for i, username in enumerate(directories, start=1)]
-    print(f'\nValid channels:\n{", ".join(channels_disp)}')
+    channels = [item for item in os.scandir(f"{logs_folder}/Twitch/Channels/") if item.is_dir()]
+    channels_disp = [f"{i} - {channel.name}" for i, channel in enumerate(channels, start=1)]
+    print(f'Valid channels:\n{", ".join(channels_disp)}')
     while True:
         channel = input("\nInput username/number from list: ").strip().lower()
-        if channel.isnumeric() and 1 <= int(channel) <= len(channels):
-            channel = channels[int(channel)-1]
+        if channel.isnumeric() and int(channel)-1 in range(len(channels)):
+            channel = channels[int(channel)-1].name
             break
-        if channel in channels: break
+        if channel in {channel.name for channel in channels}: break
     print(f"    Selected channel: {channel}")
     rootpath = f"{logs_folder}/Twitch/Channels/{channel}"
 
@@ -114,19 +111,18 @@ while True:
         date_type, date_disp, rewrite_dates = 'all', "all", True
     cdate_match = r"^(?:>(?P<start>[\d-]+))? ?(?:(?P<end>[\d-]+)<)?$"
     if (cdates := re.fullmatch(cdate_match, ' '.join(dates))):
-        startdate, enddate = cdates.group('start'), cdates.group('end')
+        startdate, enddate = cdates['start'], cdates['end']
         startdate_num = int(startdate.replace('-', '')) if startdate else 0
         enddate_num = int(enddate.replace('-', '')) if enddate else 10**8
         if startdate or enddate:
             date_type = 'both' if startdate and enddate else ('start' if startdate else enddate)
-        fromdate = startdate if startdate else "earliest"
-        todate = enddate if enddate else "latest"
+        fromdate, todate = startdate or "earliest", enddate or "latest"
         date_disp = f'{fromdate} -> {todate}'
         dates = []
         for filename in os.listdir(rootpath):
             if (filedate := re.fullmatch(r"^[a-z\d_]*-(.*)\.log$", filename)):
-                filedate = filedate.group(1)
-                if startdate_num <= int(filedate.replace('-', '')) <= enddate_num:
+                filedate = filedate[1]
+                if int(filedate.replace('-', '')) in range(startdate_num, enddate_num+1):
                     dates.append(filedate)
     print(f"    Selected dates: {date_disp}")
 
@@ -140,17 +136,15 @@ while True:
     check_exact_name, check_case, check_exact_word, min_msgs = False, False, False, 0
     cquery_match = r"^(?:\$(?P<user>\S+) ?)?(?P<message>.*)$"
     if query and (cquery := re.fullmatch(cquery_match, query)):
-        user_query = cquery.group('user') if cquery.group('user') else ''
-        message_query = cquery.group('message')
+        user_query, message_query = cquery['user'] or '', cquery['message']
         search_type, user_query = 'user', user_query.lower()
         if user_query:
-            if (check_exact_name := input("Check exact username? (y/n): ").strip() == 'y'):
-                query_disp += f" from {user_query}"
-            else:
-                query_disp += f" from ??{user_query}??"
+            check_exact_name = input("Check exact username? (y/n): ").strip() == 'y'
+            query_disp += (f" from {user_query}" if check_exact_name
+                           else f" from ??{user_query}??")
         if message_query:
             search_type, has_string = 'msg', True
-            if message_query in ("`U", "`L", "`T", "`Ts", "`C"):
+            if message_query in {"`U", "`L", "`T", "`Ts", "`C"}:
                 query_disp += {"`U": " [uppercase only]",
                                "`L": " [lowercase only]",
                                "`T": " [title only]",
@@ -181,37 +175,32 @@ while True:
         has_string = False
     if user_query and message_query:
         search_type = 'hybrid'
-    if search_type in ('msg', 'hybrid', 'all') and not check_exact_name:
-        if (min_msgs := input(
-                "Input minimum # of messages to include user (leave blank for none): "
-                ).strip()).isnumeric():
-            min_msgs = int(min_msgs)
+    if search_type in {'msg', 'hybrid', 'all'} and not check_exact_name:
+        min_msgs = input("Input minimum # of messages to include user " \
+                         "(leave blank for none): ").strip()
+        min_msgs = int(min_msgs) if min_msgs.isnumeric() else 0
+        if min_msgs:
             query_disp += f" (from users with >={min_msgs} messages)"
-        else:
-            min_msgs = 0
 
     picks = [False]*8
-    show_msgs, count_words, check_purity, show_random = picks[:4]
-    count_daily, count_per_user, count_hourly, show_hourly_graph = picks[4:]
+    (show_msgs, count_words, check_purity, show_random,
+     count_daily, count_per_user, count_hourly, show_hourly_graph) = picks
     show_freq_stats = False
-    options = (
-        "show messages from logs",
-        "show most common words",
-        "calculate user purity scores",
-        "show random messages",
-        "count daily messages",
-        "count per-user stats",
-        "count hourly messages",
-        "show hourly message graph"
-        )
-    for i,option in enumerate(options, start=1):
-        print(f"{i} - {option}")
+    options = ("show messages from logs",
+               "show most common words",
+               "calculate user purity scores",
+               "show random messages",
+               "count daily messages",
+               "count per-user stats",
+               "count hourly messages",
+               "show hourly message graph")
+    print('\n'.join(f"{i}. {option}" for i, option in enumerate(options, start=1)))
     print("Keep in mind these options only include matched messages.")
     pick_option = input("Input numbers for the options you want to enable [e.g. 125]: ").strip()
-    for num in pick_option:
-        picks[int(num)-1] = True
-    show_msgs, count_words, check_purity, show_random = picks[:4]
-    count_daily, count_per_user, count_hourly, show_hourly_graph = picks[4:]
+    picks = [str(num+1) in pick_option for num in range(8)]
+    if not any(picks): break
+    (show_msgs, count_words, check_purity, show_random,
+     count_daily, count_per_user, count_hourly, show_hourly_graph) = picks
     show_freq_stats = any((count_daily, count_per_user, count_hourly, show_hourly_graph))
 
     if not show_msgs and (date_type != 'all' or message_query):
@@ -253,19 +242,17 @@ while True:
             exclude_queries = input(
                 "Exclude the queries themselves from word results? (y/n): "
                 ).strip() == 'y'
-        if (exclude_common := input(
-                'Input # of 100 most common English words to exclude (leave blank for none): '
-                ).strip()).isnumeric():
+        exclude_common = input("Input # of 100 most common English words to exclude " \
+                               "(leave blank for none): ").strip()
+        if exclude_common:
             word_query_disp += f" <without top {exclude_common} English words>"
-            exclude_common = set(COMMON_ENG[:int(exclude_common)-1])
-        else:
-            exclude_common = set()
+        exclude_common = set(COMMON_ENG[:int(exclude_common)-1]) if exclude_common else set()
         if (unique_only := input("Only show unique words (ignore case)? (y/n): ").strip() == 'y'):
             word_query_disp += " (unique only)"
 
     purity_order, purity_disp = '', ''
     if check_purity:
-        if search_type in ('msg', 'hybrid', 'all'):
+        if search_type in {'msg', 'hybrid', 'all'}:
             purity_order = input("Order users by most pure or impure? (p/i): ").strip()
             purity_disp = {'p': "Highest", 'i': "Lowest"}.get(purity_order, "Highest")
         else:
@@ -281,7 +268,7 @@ while True:
                 average_indiv = input(
                     "Count per-message average instead of total words/characters? (y/n): "
                     ).strip() == 'y'
-            if search_type in ('msg', 'all'):
+            if search_type in {'msg', 'all'}:
                 user_limit = input(
                     "Input # of users to show (leave blank for default 10): "
                     ).strip()
@@ -294,8 +281,6 @@ while True:
             average_time_count = input(
                 "Count daily average instead of total messages? (y/n): "
                 ).strip() == 'y'
-
-    if not any(picks): break
 
     print("\nLoading results...\n")
 
@@ -321,23 +306,19 @@ while True:
                 if (cmsg := re.fullmatch(r"^\[([\d:]*)\]  ([a-z\d_]*): (.*)$", line)):
                     time, user, message = cmsg.groups()
                     args = (message, message_query, fix_query, check_case, check_exact_word)
-                    if exclude_commands and message_query != "`C" and word_query != "`C":
-                        if re.match(r"^!\w+", message): continue
-                    if exclude_bots and not (search_type == 'user' and check_exact_name):
-                        if user in BOTS: continue
+                    if (exclude_commands and message_query != "`C" and
+                        word_query != "`C" and re.match(r"^!\w+", message)): continue
+                    if (exclude_bots and not (search_type == 'user' and check_exact_name)
+                        and user in BOTS): continue
                     if search_type == 'all':
                         matched = True
                     elif search_type == 'user':
-                        if check_exact_name:
-                            matched = user == user_query
-                        else:
-                            matched = user_query.lower() in user.lower()
-                    elif search_type in ('msg', 'hybrid'):
+                        matched = (user == user_query if check_exact_name
+                                   else user_query.lower() in user.lower())
+                    elif search_type in {'msg', 'hybrid'}:
                         if user_query:
-                            if check_exact_name:
-                                matched = user == user_query
-                            else:
-                                matched = user_query.lower() in user.lower()
+                            matched = (user == user_query if check_exact_name
+                                       else user_query.lower() in user.lower())
                             if matched:
                                 matched = check_msg(*args)
                         else:
@@ -345,7 +326,7 @@ while True:
 
                     if matched:
                         if show_msgs:
-                            print(date+" "+line)
+                            print(f"{date} {line}")
                         total_count += 1
                         day_count += 1
                         times[int(time.replace(':', '')[:2])] += 1  # count only by hour ([HH]MMSS)
@@ -398,15 +379,12 @@ while True:
                         if word_query:
                             word_matched = check_msg(*args)
                         if exclude_queries:
-                            if fix_query:
-                                if word.lower() == fix_query.lower():
-                                    word_matched = False
-                            if word_fix_query:
-                                if word.lower() == word_fix_query.lower():
-                                    word_matched = False
-                        if exclude_common:
-                            if word.lower() in exclude_common:
+                            if fix_query and word.lower() == fix_query.lower():
                                 word_matched = False
+                            if word_fix_query and word.lower() == word_fix_query.lower():
+                                word_matched = False
+                        if exclude_common and word.lower() in exclude_common:
+                            word_matched = False
                         if word_matched:
                             if unique_only:
                                 total_words[word.lower()] += 1
@@ -423,8 +401,7 @@ while True:
         if check_purity and purity:
             purity_score = {}
             for user, score in purity.items():
-                pure = float(score['pcount'])
-                impure = float(score['icount'])
+                pure, impure = float(score['pcount']), float(score['icount'])
                 mcount = float(names[user])
                 # arbitrary formula, modify as desired
                 purity_score[user] = int(100 * ((pure/(pure+impure))**(4.25 * (mcount**0.05))))
@@ -433,7 +410,7 @@ while True:
                 user_purity = purity[user_query]
                 icount = str(user_purity['icount'])
                 tcount = str(user_purity['icount']+user_purity['pcount'])
-                print(f"    {purity_score[user_query]:<10} {'['+icount+'/'+tcount+' impure]'}")
+                print(f"    {purity_score[user_query]:<10} {f'[{icount}/{tcount} impure]'}")
             else:
                 purity_score = sort_dict(purity_score, use_value=True, reverse=purity_order!='i')
                 for i, (key, value) in enumerate(purity_score.items()):
@@ -441,7 +418,7 @@ while True:
                     user_purity = purity[key]
                     icount = str(user_purity['icount'])
                     tcount = str(user_purity['icount']+user_purity['pcount'])
-                    print(f"    {key+': '+str(value):<30} {'['+icount+'/'+tcount+' impure]'}")
+                    print(f"    {key+': '+str(value):<30} {f'[{icount}/{tcount} impure]'}")
                 print('\n')
                 while (purity_user := input("Input a username (leave blank to exit): ").strip()):
                     try:
@@ -462,9 +439,9 @@ while True:
             print("\n\nPress enter for a new random message, type anything to quit.", end=' ')
             while not (loop := input('')):
                 rand_key = random.choice(key_picker)
-                print(f"\nRandom message from {rand_key} in #{channel}: " \
-                      f"{msgs[rand_key][random.randint(0, len(msgs[rand_key])-1)]}",
-                      end=' ')  # type: ignore
+                rand_msg = random.choice(msgs[rand_key])
+                print(f"\nRandom message from {rand_key} " \
+                      f"in #{channel}: {rand_msg}", end=' ')  # type: ignore
 
     else:
         print("\nNo results found!")
@@ -485,13 +462,13 @@ while True:
 
         if count_daily and times:
             print(f"\nMessages{query_disp} by day in #{channel}:")
-            for date,count in daily_count.items():
+            for date, count in daily_count.items():
                 print(f"    {date}: {count}")
         else:
             print('\n')
 
         # show total message count
-        if (search_type in ('msg', 'hybrid', 'all')
+        if (search_type in {'msg', 'hybrid', 'all'}
             or (search_type == 'user' and not count_per_user)):
             print(f"{title_disp} messages{query_disp} in #{channel}: {total_count}\n")
 
@@ -534,10 +511,10 @@ while True:
         if count_hourly and times:
             print(f"{title_disp} message frequency{query_disp} by hour in #{channel}:")
             hours_i, last_key = 0, None
-            utc = list(range(-utc_offset % 24, 24)) + list(range(0, -utc_offset % 24))
+            utc = list(range(-utc_offset % 24, 24)) + list(range(-utc_offset % 24))
             for key, value in times.items():
                 key = key % 24
-                showkey = str(key % 12 if key % 12 else 12)+(" AM" if key < 12 else " PM")
+                showkey = str(key % 12 or 12)+(" AM" if key < 12 else " PM")
                 # sync utc and local if hours missing
                 hours_i = key if last_key is None else hours_i + (key-last_key)
                 print(f"    {str(showkey)} ({utc[hours_i]} UTC): {str(value)}")
