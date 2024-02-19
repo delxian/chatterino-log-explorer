@@ -303,7 +303,7 @@ while True:
             for line in file:
                 line = line.strip()
                 matched = False
-                if (cmsg := re.fullmatch(r"^\[([\d:]*)\]  ([a-z\d_]*): (.*)$", line)):
+                if (cmsg := re.fullmatch(r"^\[([\d:]*)\]  ?([a-z\d_]*): (.*)$", line)):
                     time, user, message = cmsg.groups()
                     args = (message, message_query, fix_query, check_case, check_exact_word)
                     if (exclude_commands and message_query != "`C" and
