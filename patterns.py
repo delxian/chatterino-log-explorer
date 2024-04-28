@@ -31,7 +31,7 @@ def end(message: str, fix_query: str, check_exact_word: bool) -> bool:
 
 def exclude(message: str, fix_query: str, check_exact_word: bool) -> bool:
     """Handle exclusion query."""
-    return (bool(re.match(rf".*\b{fix_query}\b.*", message))
+    return (not bool(re.match(rf".*\b{fix_query}\b.*", message))
             if check_exact_word else fix_query not in message)
 
 def include(message: str, fix_query: str, check_exact_word: bool) -> bool:
